@@ -2,30 +2,29 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const { Client, Collection, Intents } = require('discord.js');
 const Keyv = require('keyv');
+const sqlite = require('@keyv/sqlite');
 const fs = require('node:fs');
 const path = require('node:path');
+const config = require('./config.json');
+const blacklist = require('./commands/blacklist.js');
+const whitelist = require('./commands/whitelist.js');
+const broomsweep = require('./commands/broomsweep.js');
 
-const CLIENT_ID = "981742038875791402";
-const GUILD_ID = "980239581653913630";
+const CLIENT_ID = config.clientId;
+const GUILD_ID = config.guildId;
 
-const rest = new REST({ version: '9' }).setToken('');
+const rest = new REST({ version: '9' }).setToken(config.token);
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS,Intents.FLAGS.GUILD_MEMBERS] });
 
 client.on('ready', () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  client.commands = new Collection();
   client.keyv = new Keyv('sqlite://list.sqlite');
   client.keyv.on('error', err => console.error('Keyv connection error:', err));
   const commands = [];
-  const commandsPath = path.join(__dirname, 'commands');
-  const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-  for(const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    client.commands.set(command.data.name, command);
-    commands.push(command.data.toJSON());
-  }
+  commands.push(blacklist.data.toJSON());
+  commands.push(whitelist.data.toJSON());
+  commands.push(broomsweep.data.toJSON());
   rest.put(Routes.applicationGuildCommands(CLIENT_ID,GUILD_ID), {body: commands})
     .then(() => console.log('Successfully registered application commands.'))
     .catch(console.error);
@@ -56,4 +55,4 @@ client.on('guildMemberAdd', async member => {
   }
 });
 
-client.login('');
+client.login(config.token);
